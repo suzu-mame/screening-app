@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文献スクリーニングアプリ</title>
+<style>
+:root{--acc:#3468c0}
+*{box-sizing:border-box}
+body{font-family:"Hiragino Sans","Yu Gothic",sans-serif;margin:0;background:#f4f6f8;color:#1a2733}
+header{position:sticky;top:0;background:#fff;border-bottom:2px solid #dde3e8;padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:5}
+h1{font-size:14px;margin:0 8px 0 0}
+.stat{font-size:12px;background:#eef2f5;border-radius:6px;padding:3px 8px}
+.stat b{font-size:14px}
+button{font-size:13px;padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-weight:700}
+.nav{background:#e2e8ee;color:#333;font-weight:600}
+.acc{background:var(--acc);color:#fff}
+.pri{background:#6a4fb3;color:#fff}
+main{max-width:900px;margin:16px auto;padding:0 14px}
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:20px 24px}
+.meta{font-size:12px;color:#5a6b7a;margin-bottom:6px}
+.ti{font-size:17px;font-weight:700;line-height:1.45;margin:4px 0 12px}
+.ab{font-size:14px;line-height:1.7;white-space:pre-wrap}
+.noab{color:#a33;background:#fdf0f0;padding:8px 12px;border-radius:6px;font-size:13px}
+mark.g{background:#c8f2cf}mark.r{background:#ffd6d6}
+.btns{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap}
+.inc{background:#2e9e57;color:#fff}.may{background:#e6a817;color:#fff}.exc{background:#d84a4a;color:#fff}
+button.sel{outline:3px solid #1a2733}
+.reason{margin:10px 0;display:none}.reason.show{display:block}
+select,textarea,input{font-size:13px;padding:7px;border:1px solid #c6cfd6;border-radius:6px;width:100%;font-family:inherit}
+textarea{margin-top:6px}
+.foot{display:flex;justify-content:space-between;margin-top:14px;align-items:center}
+kbd{background:#eee;border-radius:4px;padding:1px 6px;font-size:12px;border:1px solid #ccc}
+.hint{font-size:12px;color:#5a6b7a;margin-top:10px}
+.jump{max-width:100%;margin:12px auto;display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.jump span{width:24px;height:20px;font-size:10px;display:flex;align-items:center;justify-content:center;border-radius:4px;background:#dde3e8;cursor:pointer}
+.jump .jI{background:#2e9e57;color:#fff}.jump .jM{background:#e6a817;color:#fff}.jump .jE{background:#d84a4a;color:#fff}.jump .cur{outline:2px solid #1a2733}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40}.ov.show{display:block}
+.panel{display:none;position:fixed;inset:4% 6%;background:#fff;border:2px solid #6a4fb3;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,.3);z-index:50;overflow:auto;padding:18px 24px}
+.panel.show{display:block}
+.panel h2{font-size:16px;color:#4a2f8f;margin:4px 0 10px}
+.panel h3{font-size:13px;color:#6a4fb3;margin:14px 0 4px}
+.panel p,.panel li{font-size:13px;line-height:1.7}
+.closeb{position:sticky;top:0;float:right;background:#6a4fb3;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:700}
+.field{margin:10px 0}.field label{font-size:12px;font-weight:700;color:#333;display:block;margin-bottom:3px}
+.welcome{max-width:640px;margin:40px auto;text-align:center;padding:0 16px}
+.welcome p{font-size:14px;line-height:1.8;color:#333}
+.big{display:inline-block;background:var(--acc);color:#fff;padding:12px 22px;border-radius:10px;font-weight:700;cursor:pointer;margin:8px}
+@media(max-width:640px){header{padding:6px 8px}h1{font-size:12px}.stat{font-size:10px;padding:2px 6px}.card{padding:14px}.jump{display:none}.panel{inset:2% 3%;padding:14px}.btns button{flex:1}}
+</style></head><body>
+<header>
+<h1>📚 文献スクリーニング</h1>
+<span class="stat">判定済 <b id="ndone">0</b>/<span id="ntot">0</span></span>
+<span class="stat">Inc <b id="ni">0</b></span>
+<span class="stat">May <b id="nm">0</b></span>
+<span class="stat">Exc <b id="ne">0</b></span>
+<button class="nav" id="langbtn">表示:日本語</button>
+<button class="pri" id="critbtn">📋 基準</button>
+<button class="nav" id="setbtn">⚙ 設定/基準編集</button>
+<button class="nav" id="loadbtn">📂 データ読込</button>
+<button class="acc" id="expbtn">⬇ 書き出し</button>
+</header>
+
+<div class="ov" id="ov"></div>
+
+<!-- 基準表示パネル -->
+<div class="panel" id="critpanel"><button class="closeb" data-close>閉じる ✕</button>
+<h2>組入れ・除外基準</h2><div id="critview"></div></div>
+
+<!-- 設定/基準編集パネル -->
+<div class="panel" id="setpanel"><button class="closeb" data-close>閉じる ✕</button>
+<h2>⚙ 設定 / 基準編集</h2>
+<div class="field"><label>包含基準（組入れ基準。自由記述。Markdown可）</label>
+<textarea id="in_inc" rows="6" placeholder="例: 対象=NP。管理構造・組織属性の違い→実践・働きやすさ・アウトカム 等"></textarea></div>
+<div class="field"><label>除外基準の説明（自由記述。任意）</label>
+<textarea id="in_excdesc" rows="4" placeholder="例: 教育/力量、ワークフォース/給与、純粋なcredentialing 等"></textarea></div>
+<div class="field"><label>除外ラベル（1行に1つ。「ラベル | 説明」も可。Excludeの選択肢に自動反映）</label>
+<textarea id="in_labels" rows="6" placeholder="wrong population | NP以外&#10;wrong concept | 概念に該当しない&#10;not substantive | 実質的内容のないletter・news等&#10;wrong language | 英語・日本語以外"></textarea></div>
+<div class="field"><label>ハイライト・緑（組入れ寄りの語。正規表現。| 区切り）</label>
+<input id="in_green" placeholder="credential\w*|supervis\w*|organi[sz]ational|所属|管理構造"></div>
+<div class="field"><label>ハイライト・赤（除外寄りの語）</label>
+<input id="in_red" placeholder="student\w*|curricul\w*|salary|教育|給与"></div>
+<hr style="margin:16px 0;border:none;border-top:1px solid #dde3e8">
+<h3 style="color:#6a4fb3;font-size:13px">自動フィルタ（.nbib読込時。※PubMed CSVには言語・PT列がないため.nbib必須）</h3>
+<div class="field"><label><input type="checkbox" id="in_autolang" style="width:auto"> ① 言語(LA)で自動除外（保持言語以外を wrong language に）</label>
+<input id="in_keeplangs" placeholder="保持する言語コード（カンマ区切り）例: eng,jpn" style="margin-top:4px"></div>
+<div class="field"><label><input type="checkbox" id="in_autopt" style="width:auto"> ② 出版タイプ(PT)で自動除外（下記PTを not substantive に）</label>
+<input id="in_nspt" placeholder="除外するPT（カンマ区切り）例: News,Interview,Biography,Portrait,Personal Narrative,Newspaper Article,Address" style="margin-top:4px"></div>
+<div class="field"><label><input type="checkbox" id="in_autoyear" style="width:auto"> ③ 発行年レンジで自動除外（下記の範囲外を out of date range に）</label>
+<div style="display:flex;gap:8px;margin-top:4px"><input id="in_yfrom" placeholder="開始年 例: 2010" inputmode="numeric"><input id="in_yto" placeholder="終了年 例: 2026（空欄可）" inputmode="numeric"></div>
+<span class="hint">開始年のみ／終了年のみでも可。年が読めない文献は除外しません。</span></div>
+<p class="hint">自動除外された文献は「自動」印つきでExcludeになり、いつでも手動で上書きできます（Include/Maybeを押せば解除）。EditorialやCommentは実質的内容があれば残すため、既定では除外しません。</p>
+<div style="margin-top:14px"><button class="acc" id="savecrit">保存</button>
+<span class="hint" id="saved" style="margin-left:10px"></span></div>
+</div>
+
+<!-- データ読込パネル -->
+<div class="panel" id="loadpanel"><button class="closeb" data-close>閉じる ✕</button>
+<h2>📂 データ読込</h2>
+<div class="field"><label>① PubMedの .nbib / .txt（MEDLINE形式）または CSV（必須）</label>
+<input type="file" id="file_data" accept=".nbib,.txt,.csv,text/plain,text/csv"></div>
+<div class="field"><label>②（任意）日本語訳JSON（Claude作成。{"PMID":{"tij":"...","abj":"..."}} 形式）</label>
+<input type="file" id="file_ja" accept=".json,application/json"></div>
+<div class="field"><label>③（任意）判定の続きを読み込む（以前書き出したCSV）</label>
+<input type="file" id="file_resume" accept=".csv,text/csv"></div>
+<p class="hint">読み込んだデータは<b>この端末のブラウザ内だけ</b>で処理され、外部に送信されません。判定は自動保存され、次回この端末で開けば続きから再開できます。日本語訳がないときは、ブラウザの「日本語に翻訳」機能も使えます。</p>
+<p class="hint" style="background:#eef2f5;padding:8px 10px;border-radius:6px"><b>📱 PC↔スマホの引き継ぎ</b>: 判定はブラウザ内保存で端末をまたがないため、次の3ステップで引き継ぎます。<br>①元の端末で「⬇ 書き出し → 1 全判定ログ(CSV)」を保存（iCloud等へ）<br>②移った端末で、同じ .nbib（①）と 日本語訳JSON（②・任意）を読み込む<br>③この「③ 判定の続き」で、①で保存した<b>全判定ログCSV</b>を読み込む → 判定・除外理由・自動判定がそのまま復元。以降どちらの端末でも続行でき、区切りごとにCSVを書き出して相手端末に読み込ませれば同期できます。</p>
+<div id="loadmsg" class="hint"></div>
+</div>
+
+<div class="jump" id="jump"></div>
+<main>
+<div id="welcome" class="welcome">
+<h2>📚 文献スクリーニングアプリ</h2>
+<p>PubMedの .nbib / CSV を読み込んで、タイトル・抄録スクリーニングをブラウザだけで行えます。判定は端末内に自動保存。スマホ・PCどちらでも使えます。</p>
+<div class="big" id="startbtn">📂 データを読み込む</div>
+<div class="big" style="background:#6a4fb3" id="startset">⚙ 先に基準を設定</div>
+<p class="hint">まず「設定/基準編集」で包含・除外基準と除外ラベルを入れると、判定中に📋基準で参照でき、Exclude時の理由もそのラベルから選べます。</p>
+</div>
+<div class="card" id="card" style="display:none"></div>
+<p class="hint" id="hintline" style="display:none">キー: <kbd>I</kbd>Include <kbd>M</kbd>Maybe <kbd>E</kbd>Exclude <kbd>←</kbd><kbd>→</kbd>移動。判定は自動保存。日本語訳は参考訳、最終判断は原文で。</p>
+</main>
+
+<script>
+const LS='screening_app_v1';
+let DATA=[], cur=0, lang=localStorage.getItem(LS+'_lang')||'ja';
+let st=JSON.parse(localStorage.getItem(LS+'_state')||'{}');
+let cfg=JSON.parse(localStorage.getItem(LS+'_cfg')||'{}');
+let GREEN=/(?!)/g, RED=/(?!)/g;
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function hl(s){return esc(s).replace(GREEN,'<mark class="g">$1</mark>').replace(RED,'<mark class="r">$1</mark>')}
+function saveState(){localStorage.setItem(LS+'_state',JSON.stringify(st));localStorage.setItem(LS+'_cur',cur)}
+function labels(){return (cfg.labels||[]).map(l=>l.label)}
+
+// ---------- .nbib パーサ ----------
+function parseNbib(text){
+  const recs=[]; const blocks=text.replace(/\r/g,'').split(/\n\s*\n(?=PMID- )/);
+  for(let b of blocks){
+    if(!/PMID- /.test(b)) continue;
+    const fields={};
+    const lines=b.split('\n'); let tag=null;
+    for(const ln of lines){
+      const m=ln.match(/^([A-Z]{2,4})\s*- (.*)$/);
+      if(m){tag=m[1]; (fields[tag]=fields[tag]||[]).push(m[2]);}
+      else if(tag && /^\s{4,}/.test(ln)){ const a=fields[tag]; a[a.length-1]+=' '+ln.trim(); }
+    }
+    const g=t=>(fields[t]||[]);
+    const doiFrom=arr=>{for(const x of arr){const mm=x.match(/(10\.\S+?)\s*\[doi\]/i); if(mm) return mm[1];} return '';};
+    const pmid=(g('PMID')[0]||'').trim(); if(!pmid) continue;
+    recs.push({
+      pmid, ti:(g('TI')[0]||'').replace(/\s+/g,' ').trim(),
+      ab:g('AB').join(' ').replace(/\s+/g,' ').trim(),
+      au:(g('FAU')[0]||g('AU')[0]||''), dp:(g('DP')[0]||''),
+      jt:(g('JT')[0]||g('TA')[0]||''),
+      doi:doiFrom(g('LID').concat(g('AID'))), la:g('LA').join(','), pt:g('PT').map(x=>x.trim())
+    });
+  }
+  return recs;
+}
+function parseCsvData(text){
+  const rows=csvRows(text); if(!rows.length) return [];
+  const H=rows[0].map(h=>h.replace(/^﻿/,'').trim()); const idx=n=>H.findIndex(h=>n.some(x=>h.toLowerCase()===x));
+  const iP=idx(['pmid']),iT=idx(['title']),iA=idx(['abstract']),iJ=idx(['journal/book','journal']),iY=idx(['publication year','year']),iAu=idx(['authors','first author']),iD=idx(['doi']);
+  const out=[];
+  for(let r=1;r<rows.length;r++){const c=rows[r]; if(!c[iP]) continue;
+    out.push({pmid:c[iP],ti:c[iT]||'',ab:iA>=0?c[iA]||'':'',au:iAu>=0?c[iAu]||'':'',dp:iY>=0?c[iY]||'':'',jt:iJ>=0?c[iJ]||'':'',doi:iD>=0?c[iD]||'':'',la:''});}
+  return out;
+}
+function csvRows(text){const rows=[];let row=[],cell='',q=false;text=text.replace(/\r/g,'');
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch=='"'){if(text[i+1]=='"'){cell+='"';i++}else q=false}else cell+=ch}
+    else{if(ch=='"')q=true;else if(ch==','){row.push(cell);cell=''}else if(ch=='\n'){row.push(cell);rows.push(row);row=[];cell=''}else cell+=ch}}
+  if(cell.length||row.length){row.push(cell);rows.push(row)} return rows;}
+
+// ---------- 設定 ----------
+function loadCfgToForm(){
+  in_inc.value=cfg.inc||''; in_excdesc.value=cfg.excdesc||'';
+  in_labels.value=(cfg.labels||[]).map(l=>l.desc?l.label+' | '+l.desc:l.label).join('\n');
+  in_green.value=cfg.green||''; in_red.value=cfg.red||'';
+  in_autolang.checked=!!cfg.autoLang; in_keeplangs.value=cfg.keepLangs||'eng,jpn';
+  in_autopt.checked=!!cfg.autoPT; in_nspt.value=cfg.nsPTs||'News,Interview,Biography,Portrait,Personal Narrative,Newspaper Article,Address';
+  in_autoyear.checked=!!cfg.autoYear; in_yfrom.value=cfg.yFrom||''; in_yto.value=cfg.yTo||'';
+}
+function saveCfg(){
+  cfg.inc=in_inc.value; cfg.excdesc=in_excdesc.value; cfg.green=in_green.value; cfg.red=in_red.value;
+  cfg.autoLang=in_autolang.checked; cfg.keepLangs=in_keeplangs.value.trim(); cfg.autoPT=in_autopt.checked; cfg.nsPTs=in_nspt.value.trim();
+  cfg.autoYear=in_autoyear.checked; cfg.yFrom=in_yfrom.value.trim(); cfg.yTo=in_yto.value.trim();
+  cfg.labels=in_labels.value.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>{const p=s.split('|');return {label:p[0].trim(),desc:(p[1]||'').trim()}});
+  localStorage.setItem(LS+'_cfg',JSON.stringify(cfg));
+  applyCfg(); saved.textContent='保存しました'; setTimeout(()=>saved.textContent='',2000);
+}
+function applyCfg(){
+  try{GREEN=cfg.green?new RegExp('('+cfg.green+')','gi'):/(?!)/g}catch(e){GREEN=/(?!)/g}
+  try{RED=cfg.red?new RegExp('('+cfg.red+')','gi'):/(?!)/g}catch(e){RED=/(?!)/g}
+  // 基準ビュー
+  let h='';
+  if(cfg.inc){h+='<h3>包含基準</h3><p>'+esc(cfg.inc).replace(/\n/g,'<br>')+'</p>';}
+  if(cfg.excdesc){h+='<h3>除外基準</h3><p>'+esc(cfg.excdesc).replace(/\n/g,'<br>')+'</p>';}
+  if((cfg.labels||[]).length){h+='<h3>除外ラベル</h3><ul>'+cfg.labels.map(l=>'<li><b>'+esc(l.label)+'</b>'+(l.desc?'：'+esc(l.desc):'')+'</li>').join('')+'</ul>';}
+  if(!h)h='<p>まだ基準が未設定です。「⚙ 設定/基準編集」で入力してください。</p>';
+  critview.innerHTML=h;
+}
+
+// ---------- 画面 ----------
+function counts(){let i=0,m=0,e=0,d=0;DATA.forEach(r=>{const s=st[r.pmid];if(s&&s.d){d++;if(s.d=='Include')i++;else if(s.d=='Maybe')m++;else e++}});ndone.textContent=d;ni.textContent=i;nm.textContent=m;ne.textContent=e;ntot.textContent=DATA.length}
+function jumpbar(){const j=jump;j.innerHTML='';DATA.forEach((r,ix)=>{const s=st[r.pmid];const sp=document.createElement('span');sp.textContent=ix+1;if(s&&s.d)sp.className='j'+s.d[0];if(ix==cur)sp.classList.add('cur');sp.onclick=()=>{cur=ix;render()};j.appendChild(sp)})}
+function render(){
+  if(!DATA.length){welcome.style.display='';card.style.display='none';hintline.style.display='none';return}
+  welcome.style.display='none';card.style.display='';hintline.style.display='';
+  const r=DATA[cur], s=st[r.pmid]||{};
+  const labs=labels(); const opts=['<option>— 除外理由を選択 —</option>'].concat(labs.map(x=>`<option ${s.r==x?'selected':''}>${esc(x)}</option>`)).join('');
+  card.innerHTML=`<div class="meta">No.${cur+1} ｜ PMID: ${r.pmid} ｜ ${esc(r.jt)} ｜ ${esc(r.dp)} ｜ ${esc(r.au)}${r.doi?' ｜ DOI: '+esc(r.doi):''}</div>
+  <div class="ti">${lang=='ja'&&r.tij?esc(r.tij):hl(r.ti)}</div>
+  ${lang=='ja'&&r.tij?`<div class="meta" style="margin-bottom:8px">${hl(r.ti)}</div>`:''}
+  ${(lang=='ja'&&r.abj)?`<div class="ab">${esc(r.abj)}</div>`:(r.ab?`<div class="ab">${hl(r.ab)}</div>`:`<div class="noab">抄録なし — タイトルで判断できず関連がありそうなら Maybe</div>`)}
+  <div class="btns">
+    <button class="inc ${s.d=='Include'?'sel':''}" onclick="dec('Include')">Include</button>
+    <button class="may ${s.d=='Maybe'?'sel':''}" onclick="dec('Maybe')">Maybe</button>
+    <button class="exc ${s.d=='Exclude'?'sel':''}" onclick="dec('Exclude')">Exclude</button></div>
+  ${s.auto?'<div class="meta" style="color:#a33">⚙ 自動判定（フィルタ）— 誤りなら Include/Maybe で上書きできます</div>':''}
+  <div class="reason ${s.d=='Exclude'?'show':''}"><select onchange="rea(this.value)">${opts}</select></div>
+  <textarea rows="2" placeholder="メモ・迷った点" onchange="nt(this.value)">${esc(s.n||'')}</textarea>
+  <div class="foot"><button class="nav" onclick="mv(-1)">← 前へ</button><span class="meta">${cur+1} / ${DATA.length}</span><button class="nav" onclick="mv(1)">次へ →</button></div>`;
+  counts();jumpbar();
+}
+function dec(d){const r=DATA[cur];st[r.pmid]=st[r.pmid]||{};st[r.pmid].d=d;st[r.pmid].auto=0;saveState();if(d=='Exclude'){render()}else{setTimeout(()=>mv(1),150);render()}}
+function rea(v){st[DATA[cur].pmid].r=v.startsWith('—')?'':v;saveState()}
+function nt(v){st[DATA[cur].pmid]=st[DATA[cur].pmid]||{};st[DATA[cur].pmid].n=v;saveState()}
+function mv(k){cur=Math.min(DATA.length-1,Math.max(0,cur+k));saveState();render();scrollTo(0,0)}
+window.dec=dec;window.rea=rea;window.nt=nt;window.mv=mv;
+document.addEventListener('keydown',e=>{if(/TEXTAREA|SELECT|INPUT/.test(e.target.tagName))return;if(e.key=='ArrowRight')mv(1);else if(e.key=='ArrowLeft')mv(-1);else if(/^[ime]$/i.test(e.key))dec({i:'Include',m:'Maybe',e:'Exclude'}[e.key.toLowerCase()])});
+
+// ---------- パネル制御 ----------
+function openP(p){p.classList.add('show');ov.classList.add('show')}
+function closeAll(){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));ov.classList.remove('show')}
+ov.onclick=closeAll;document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeAll);
+critbtn.onclick=()=>{applyCfg();openP(critpanel)};
+setbtn.onclick=()=>{loadCfgToForm();openP(setpanel)};
+loadbtn.onclick=()=>openP(loadpanel);
+startbtn&&(startbtn.onclick=()=>openP(loadpanel));
+startset&&(startset.onclick=()=>{loadCfgToForm();openP(setpanel)});
+savecrit.onclick=saveCfg;
+langbtn.onclick=()=>{lang=lang=='ja'?'en':'ja';localStorage.setItem(LS+'_lang',lang);langbtn.textContent=lang=='ja'?'表示:日本語':'表示:英語';render()};
+langbtn.textContent=lang=='ja'?'表示:日本語':'表示:英語';
+
+// ---------- データ読込 ----------
+file_data.onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{
+  const t=rd.result; DATA=/,.*,/.test(t.slice(0,200))&&!/^PMID- /m.test(t)?parseCsvData(t):parseNbib(t);
+  DATA.forEach((r,i)=>{r.no=i+1;r.tij=r.tij||'';r.abj=r.abj||''});
+  cur=+(localStorage.getItem(LS+'_cur')||0); if(cur>=DATA.length)cur=0;
+  const filt=applyAutoFilter();
+  let msg=`読み込み: <b>${DATA.length}件</b>（抄録あり ${DATA.filter(r=>r.ab).length}件）`;
+  if(filt.lang+filt.pt+filt.yr>0) msg+=`<br>自動フィルタ: wrong language ${filt.lang}件 / not substantive(PT) ${filt.pt}件 / 発行年レンジ外 ${filt.yr}件 を自動Exclude`;
+  if((cfg.autoLang||cfg.autoPT) && !DATA.some(r=>r.pt&&r.pt.length)) msg+=`<br><b style="color:#a33">※このファイルにPT/LA列がありません（CSVの可能性）。自動フィルタは.nbibでのみ機能します</b>`;
+  loadmsg.innerHTML=msg;
+  render();};rd.readAsText(f,'utf-8')};
+function applyAutoFilter(){
+  let lang=0,pt=0,yr=0;
+  const keep=(cfg.keepLangs||'eng,jpn').split(',').map(s=>s.trim()).filter(Boolean);
+  const ns=(cfg.nsPTs||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const yf=parseInt(cfg.yFrom,10), yt=parseInt(cfg.yTo,10);
+  DATA.forEach(r=>{
+    const s=st[r.pmid];
+    if(s && !s.auto) return; // 手動判定は尊重
+    if(cfg.autoLang && r.la && !r.la.split(',').some(l=>keep.includes(l.trim()))){
+      st[r.pmid]={d:'Exclude',r:'wrong language',n:(s&&s.n)||'',auto:1}; lang++; return;}
+    if(cfg.autoPT && r.pt && r.pt.some(p=>ns.includes(p.toLowerCase()))){
+      st[r.pmid]={d:'Exclude',r:'not substantive',n:(s&&s.n)||'',auto:1}; pt++; return;}
+    if(cfg.autoYear){const y=parseInt(yearOf(r.dp),10);
+      if(y && ((!isNaN(yf)&&y<yf)||(!isNaN(yt)&&y>yt))){
+        st[r.pmid]={d:'Exclude',r:'out of date range',n:(s&&s.n)||'',auto:1}; yr++; return;}}
+  });
+  saveState(); return {lang,pt,yr};
+}
+file_ja.onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{
+  try{const ja=JSON.parse(rd.result);let n=0;DATA.forEach(r=>{if(ja[r.pmid]){r.tij=ja[r.pmid].tij||'';r.abj=ja[r.pmid].abj||'';n++}});loadmsg.innerHTML+=`<br>日本語訳: ${n}件を適用`;render()}catch(err){loadmsg.innerHTML+='<br>訳JSONの読み込みに失敗しました'}};rd.readAsText(f,'utf-8')};
+file_resume.onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{
+  const rows=csvRows(rd.result.replace(/^﻿/,''));if(!rows.length){render();return;}
+  // ヘッダー名で列を特定（列順が変わっても引き継げる）
+  const H=rows[0].map(h=>(h||'').replace(/^﻿/,'').trim());
+  const ci=name=>H.findIndex(h=>h===name);
+  const iP=Math.max(ci('PMID'),0), iD=ci('判定'), iR=ci('除外理由'), iM=ci('メモ'), iA=ci('自動/手動');
+  let n=0;
+  for(let i=1;i<rows.length;i++){const c=rows[i];const pmid=c[iP];if(!pmid)continue;
+    const d=iD>=0?c[iD]:c[2], r=iR>=0?c[iR]:c[3], m=iM>=0?c[iM]:'', auto=iA>=0&&c[iA]=='自動';
+    const dd=(d&&d!=='未判定')?d:undefined;
+    if(dd||r||m){st[pmid]={d:dd,r:r||'',n:m||'',auto:auto?1:0};n++}}
+  saveState();loadmsg.innerHTML+=`<br>判定の続き: <b>${n}件</b>を復元しました`;render()};rd.readAsText(f,'utf-8')};
+
+// ---------- 書き出し ----------
+function dl(name,csv){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download=name;a.click();
+  setTimeout(()=>{if(confirm('ダウンロードできない環境の場合はOKでCSVの中身を表示します。コピーして保存してください。')){const t=document.createElement('textarea');t.style.cssText='position:fixed;inset:8%;width:84%;height:74%;z-index:99;background:#fff;border:2px solid #333';t.value=csv;document.body.appendChild(t);t.select()}},500)}
+function q(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}
+function yearOf(dp){const m=(dp||'').match(/\d{4}/);return m?m[0]:''}
+function today(){const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')}
+
+// 各出力の行データ（配列の配列）を返す
+function rowsLog(){const H=['PMID','タイトル','判定','除外理由','自動/手動','メモ','年','雑誌','DOI'];const R=[H];
+  DATA.forEach(r=>{const s=st[r.pmid]||{};R.push([r.pmid,r.ti,s.d||'未判定',s.r||'',s.d=='Exclude'?(s.auto?'自動':'手動'):'',s.n||'',yearOf(r.dp),r.jt,r.doi])});return R;}
+function rowsFulltext(){const H=['PMID','筆頭著者','年','タイトル','DOI','PDF入手状況','フルテキスト判定','除外理由','メモ'];const R=[H];
+  DATA.forEach(r=>{const s=st[r.pmid]||{};if(s.d=='Include'||s.d=='Maybe')R.push([r.pmid,r.au,yearOf(r.dp),r.ti,r.doi,'','','',(s.d=='Maybe'?'（T/A:Maybe）':'')+(s.n||'')])});return R;}
+function summary(){
+  let inc=0,may=0,exc=0,und=0; const byReason={}; let autoL=0,autoP=0,exAuto=0,exMan=0;
+  DATA.forEach(r=>{const s=st[r.pmid]||{}; if(s.d=='Include')inc++;else if(s.d=='Maybe')may++;else if(s.d=='Exclude'){exc++; const rs=s.r||'(理由未選択)'; byReason[rs]=(byReason[rs]||0)+1; if(s.auto){exAuto++; if(s.r=='wrong language')autoL++; if(s.r=='not substantive')autoP++;}else exMan++;}else und++;});
+  return {total:DATA.length,inc,may,exc,und,byReason,autoL,autoP,exAuto,exMan,keep:inc+may};
+}
+function rowsSummary(){const s=summary();const R=[];
+  R.push(['文献スクリーニング 集計サマリー']); R.push(['作成日',today()]); R.push([]);
+  R.push(['総件数',s.total]);
+  R.push(['Include',s.inc]); R.push(['Maybe',s.may]); R.push(['Exclude',s.exc]); R.push(['未判定',s.und]);
+  R.push(['残す（Include+Maybe）',s.keep]); R.push([]);
+  R.push(['除外理由','件数']);
+  Object.keys(s.byReason).sort().forEach(k=>R.push([k,s.byReason[k]]));
+  R.push([]);
+  R.push(['うち自動フィルタによる除外','件数']);
+  R.push(['① wrong language（言語LA）',s.autoL]);
+  R.push(['② not substantive（出版タイプPT）',s.autoP]);
+  R.push(['自動除外 合計',s.exAuto]);
+  R.push(['手動による除外',s.exMan]);
+  return R;
+}
+function toCsv(R){return R.map(row=>row.map(q).join(',')).join('\n');}
+
+// SheetJS を動的に読み込んで .xlsx を生成
+function ensureXLSX(cb){
+  if(window.XLSX)return cb();
+  const s=document.createElement('script');
+  s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+  s.onload=cb; s.onerror=()=>alert('Excel(.xlsx)生成にはオンライン接続が必要です。オフライン時は 1〜3 のCSV書き出しを使ってください。');
+  document.head.appendChild(s);
+}
+function exportXlsx(){
+  ensureXLSX(()=>{
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rowsSummary()),'集計サマリー');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rowsLog()),'全判定ログ');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rowsFulltext()),'フルテキスト用');
+    XLSX.writeFile(wb,'スクリーニング結果_'+today()+'.xlsx');
+  });
+}
+expbtn.onclick=()=>{
+  const which=prompt('書き出しを選択:\n1 = 全判定ログ（CSV・全件）\n2 = フルテキスト用（CSV・Include+Maybe）\n3 = 集計サマリー（CSV・除外理由別の件数）\n4 = 3シートまとめてExcel(.xlsx)（集計/全ログ/フルテキスト・要オンライン）\n\n1〜4を入力','4');
+  if(which=='1')dl('全判定ログ_'+today()+'.csv',toCsv(rowsLog()));
+  else if(which=='2')dl('フルテキストスクリーニング用_'+today()+'.csv',toCsv(rowsFulltext()));
+  else if(which=='3')dl('集計サマリー_'+today()+'.csv',toCsv(rowsSummary()));
+  else if(which=='4')exportXlsx();
+};
+
+// 初期化
+if(!cfg.labels){cfg={inc:'',excdesc:'',labels:[{label:'wrong population',desc:'NP以外'},{label:'wrong concept',desc:'概念に該当しない'},{label:'not substantive',desc:'実質的内容のないletter・news・短報'},{label:'wrong language',desc:'英語・日本語以外'},{label:'out of date range',desc:'発行年レンジ外'}],green:'',red:''};localStorage.setItem(LS+'_cfg',JSON.stringify(cfg))}
+applyCfg();render();
+</script></body></html>

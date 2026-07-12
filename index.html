@@ -97,6 +97,8 @@ kbd{background:#eee;border-radius:4px;padding:1px 6px;font-size:12px;border:1px 
 <p class="hint">自動除外された文献は「自動」印つきでExcludeになり、いつでも手動で上書きできます（Include/Maybeを押せば解除）。EditorialやCommentは実質的内容があれば残すため、既定では除外しません。</p>
 <div style="margin-top:14px"><button class="acc" id="savecrit">保存</button>
 <span class="hint" id="saved" style="margin-left:10px"></span></div>
+<hr style="margin:22px 0 8px;border:none;border-top:1px solid #eef0f2">
+<div style="text-align:right"><button id="resetbtn" style="background:none;border:1px solid #d9c2c2;color:#9a7070;font-weight:400;font-size:11px;padding:3px 10px">全データリセット</button></div>
 </div>
 
 <!-- データ読込パネル -->
@@ -278,6 +280,13 @@ loadbtn.onclick=()=>openP(loadpanel);
 startbtn&&(startbtn.onclick=()=>openP(loadpanel));
 startset&&(startset.onclick=()=>{loadCfgToForm();openP(setpanel)});
 savecrit.onclick=saveCfg;
+// 全データリセット: このアプリのlocalStorageキーだけを削除して初期画面へ（他ツールのデータには触れない）
+resetbtn.onclick=()=>{
+  const decided=Object.keys(st).filter(k=>st[k]&&st[k].d).length;
+  if(!confirm(`判定${decided}件と設定をすべて削除します。書き出し1でバックアップ済みですか？`))return;
+  ['_state','_cfg','_cur','_lang'].forEach(k=>localStorage.removeItem(LS+k));
+  location.reload();
+};
 // 自動フィルタ3種のトグル: メモリ上のcfgを更新して即再適用（保存ボタン不要。cfg永続化はsaveCfg経由）
 in_autolang.onchange=()=>{cfg.autoLang=in_autolang.checked;reapplyFilters()};
 in_autopt.onchange=()=>{cfg.autoPT=in_autopt.checked;reapplyFilters()};
